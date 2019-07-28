@@ -183,3 +183,39 @@ And confirm that they're all gone:
      
     $ sudo kubectl get service cassandra
     Error from server (NotFound): services "cassandra" not found
+
+
+Saturday, July 28, 2019
+========================
+
+Because I use Maven at work, I decided to take a little detour and figure out
+how to manage dependencies and the build process using it (instead of Gradle,
+which this example originally used.)
+
+I built a stand-alone, Maven-managed project based on [this Datastax 4.x driver
+example](https://github.com/datastax/java-driver/blob/4.x/examples/src/main/java/com/datastax/oss/driver/examples/basic/ReadCassandraVersion.java),
+the [Datastax 4.1 Javadocs](https://docs.datastax.com/en/drivers/java/4.1/),
+[human docs](https://docs.datastax.com/en/developer/java-driver/4.1/) (which
+aren't great) and the [Datastax 4.1 driver in Apache's Maven
+repository](http://repo.maven.apache.org/maven2/com/datastax/oss/java-driver-core/4.1.0/).
+
+The [Maven Getting Started
+Guide](https://maven.apache.org/guides/getting-started/index.html) was very
+useful, and linked to many other concept introductions.
+
+
+Next Steps
+===========
+
+1. Test the Cassandra client app connecting to a Cassandra server running in
+Minikube (via an exposed K8s Service, I think).
+
+1. Rework this project to use Maven instead of Gradle.
+    - https://codefresh.io/howtos/using-docker-maven-maven-docker/
+    - https://ro14nd.de/dmp-not-so-bad
+
+1. Deploy both the Java Spring application and Cassandra into **Minikube**.
+
+1. Deploy both the Java Spring application and Cassandra into **GCP**.
+
+1. Debug the Cassandra client application running in Docker/K8s.
