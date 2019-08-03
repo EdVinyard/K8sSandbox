@@ -9,7 +9,7 @@ import com.google.common.base.Strings;
 
 @RestController
 public class Controller {
-    final Logger log = LoggerFactory.getLogger(Application.class);
+    final Logger log = LoggerFactory.getLogger(Controller.class);
 
     @GetMapping("/")
     public String index(
