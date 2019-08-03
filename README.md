@@ -204,6 +204,37 @@ Guide](https://maven.apache.org/guides/getting-started/index.html) was very
 useful, and linked to many other concept introductions.
 
 
+Saturday, August 3, 2019
+========================
+
+[Install Cassandra](http://cassandra.apache.org/download/) for the command line
+tools and [disable the Cassandra server via `sudo systemctl disable
+cassandra`](https://askubuntu.com/questions/19320/how-to-enable-or-disable-services).
+
+    $ sudo minikube start --vm-driver=none
+    ...
+
+    $ sudo minikube dashboard
+    ...
+
+    $ kubectl get pods
+    NAME                            READY   STATUS    RESTARTS   AGE
+    cassandra-0                     1/1     Running   1          7d1h
+    hello-spring-684c5969d9-q5k8g   1/1     Running   3          13d
+
+    $ kubectl port-forward cassandra-0 9042
+    Forwarding from 127.0.0.1:9042 -> 9042
+    Forwarding from [::1]:9042 -> 9042
+
+    $ cqlsh
+    Connected to K8Demo at 127.0.0.1:9042.
+    [cqlsh 5.0.1 | Cassandra 3.11.2 | CQL spec 3.4.4 | Native protocol v4]
+    Use HELP for help.
+    cqlsh> describe keyspaces
+
+    system_traces  system_schema  system_auth  system  system_distributed
+
+
 Next Steps
 ===========
 
