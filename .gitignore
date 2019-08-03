@@ -1,6 +1,5 @@
 *.class
 .vscode/**
-build/**
-.gradle/
 .project
 .settings/**
+cass-client/target/**
