@@ -234,6 +234,35 @@ cassandra`](https://askubuntu.com/questions/19320/how-to-enable-or-disable-servi
 
     system_traces  system_schema  system_auth  system  system_distributed
 
+Started a new Spring Boot application using Maven this time using [this
+how-to](https://spring.io/guides/gs/spring-boot/).
+
+Learned how to "manually" build and run the Spring Boot application as a Docker
+container (outside of Kubernetes) using a very simple `Dockerfile`:
+
+    FROM adoptopenjdk/openjdk11:alpine-jre
+    COPY target/service-that-logs-0.1.0.jar .
+    EXPOSE 8080/tcp
+    ENTRYPOINT ["java","-jar","service-that-logs-0.1.0.jar"]
+
+It took a little digging, but I found a [JDK 11 + Alpine Docker base
+image](https://hub.docker.com/r/adoptopenjdk/openjdk11) that's a (relatively)
+lean 141 MB, compared to the ~250 MB `openjdk/11-jre` image and the portly
+600+ MB `openjdk/11`.
+
+Other examples seem really interested in `COPY`ing their build artifacts in
+other directories (e.g., `/app/lib`, or `/usr/src`); I'm not sure why. Just
+putting it in the working directory seems to work OK.
+
+Then, with the help of 
+- https://docs.docker.com/get-started/part2/#build-the-app
+- https://docs.docker.com/engine/reference/commandline/run/#publish-or-expose-port
+
+I ran
+
+    $ docker build --tag=service-that-logs:0.1.0 .
+    
+    $ docker run -p 127.0.0.1:80:8080/tcp service-that-logs:0.1.0
 
 Next Steps
 ===========
