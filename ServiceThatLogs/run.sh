@@ -1,1 +1,1 @@
-java -jar target/gs-spring-boot-0.1.0.jar
+java -jar target/service-that-logs-0.1.0.jar
