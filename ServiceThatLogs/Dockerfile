@@ -1,7 +1,4 @@
-FROM openjdk:8-jdk-alpine
-VOLUME /tmp
-ARG DEPENDENCY=target/dependency
-COPY ${DEPENDENCY}/BOOT-INF/lib /app/lib
-COPY ${DEPENDENCY}/META-INF /app/META-INF
-COPY ${DEPENDENCY}/BOOT-INF/classes /app
-ENTRYPOINT ["java","-cp","app:app/lib/*","hello.Application"]
+FROM openjdk:11-jre-slim
+COPY target/service-that-logs-0.1.0.jar .
+EXPOSE 8080/tcp
+ENTRYPOINT ["java","-jar","service-that-logs-0.1.0.jar"]
