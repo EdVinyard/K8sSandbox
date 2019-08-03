@@ -2,4 +2,4 @@
 .vscode/**
 .project
 .settings/**
-cass-client/target/**
+PrintCassandraVersionCli/target/**
