@@ -247,8 +247,8 @@ container (outside of Kubernetes) using a very simple `Dockerfile`:
 
 It took a little digging, but I found a [JDK 11 + Alpine Docker base
 image](https://hub.docker.com/r/adoptopenjdk/openjdk11) that's a (relatively)
-lean 141 MB, compared to the ~250 MB `openjdk/11-jre` image and the portly
-600+ MB `openjdk/11`.
+lean 141 MB, compared to the ~250 MB `openjdk/11-jre` image and the portly 600+
+MB `openjdk/11`.
 
 Other examples seem really interested in `COPY`ing their build artifacts in
 other directories (e.g., `/app/lib`, or `/usr/src`); I'm not sure why. Just
@@ -263,6 +263,104 @@ I ran
     $ docker build --tag=service-that-logs:0.1.0 .
     
     $ docker run -p 127.0.0.1:80:8080/tcp service-that-logs:0.1.0
+
+I added environment variable control of the log level, using this [article on
+environment variables, application.properties, and
+Spring](https://blog.indrek.io/articles/using-environment-variables-with-spring-boot/),
+this [tip on request detail
+logging](https://stackoverflow.com/questions/53723613/how-to-set-enableloggingrequestdetails-true-in-spring-boot),
+[a little refresher on environment variable
+scope](https://askubuntu.com/a/205698/398512), an [exhaustive list of Spring
+Boot configuration
+overriding](https://docs.spring.io/spring-boot/docs/current/reference/html/boot-features-external-config.html),
+which all started with [Sping Boot Logback
+configuration](https://docs.spring.io/spring-boot/docs/current/reference/html/howto-logging.html#howto-configure-logback-for-logging).
+
+Now, it's finally time to use the Maven-built, Docker Container-ized, Spring
+Boot application in Kubernetes!
+
+    $ # deploy a container image
+    $ kubectl run service-that-logs \
+        --image=service-that-logs:0.1.0 \
+        --image-pull-policy=Never \
+        --port=8080 \
+        --env="LOG_LEVEL=DEBUG"
+
+    $ sudo kubectl get deployment
+
+    $ # expose the Deployment
+    $ kubectl expose deployment service-that-logs \
+        --type=LoadBalancer \
+        --port=8081 \
+        --target-port=8080
+
+    $ kubectl get service -o wide
+    NAME                TYPE           CLUSTER-IP      EXTERNAL-IP   PORT(S)          AGE     SELECTOR
+    cassandra           ClusterIP      None            <none>        9042/TCP         7d16h   app=cassandra
+    kubernetes          ClusterIP      10.96.0.1       <none>        443/TCP          20d     <none>
+    service-that-logs   LoadBalancer   10.106.190.55   <pending>     8081:30622/TCP   7s      run=service-that-logs
+
+    $ # contact the service using the Cluster-internal IP address
+    $ curl 10.106.190.55:8081 && echo
+    Hello, curl/7.58.0!
+
+    $ # contact the service using the external IP address and port
+    $ curl localhost:30622 && echo
+    Hello, curl/7.58.0!
+
+You _can_ view the logs using Docker, only bceause we're using Minikube:
+
+    $ # find the Container ID
+    $ docker ps
+    ...
+    $ # follow (-f) the container logs
+    $ docker logs -f d623c865464c
+
+Alternatively (and more correctly) you _should_:
+
+    $ kubectl get pods
+    NAME                                 READY   STATUS    RESTARTS   AGE
+    cassandra-0                          1/1     Running   2          7d16h
+    service-that-logs-7d8579b587-5vz55   1/1     Running   0          16m
+
+    $ kubectl logs -f service-that-logs-7d8579b587-5vz55
+
+Manual Development Cycle
+-------------------------
+
+Now, let's make a change to the application and redeploy it (omitting command
+output).  We'll increate the "version number" embedded in the Docker image tag,
+just to differentiate between the old and new images.
+
+    $ kubectl delete service service-that-logs
+
+    $ kubectl delete deployment service-that-logs
+
+    $ # change the source code to say "Howdy" instead of "Hello"
+
+    $ mvn package
+
+    $ docker build --tag=service-that-logs:0.1.1 .
+
+    $ kubectl run service-that-logs \
+        --image=service-that-logs:0.1.1 \
+        --image-pull-policy=Never \
+        --port=8080 \
+        --env="LOG_LEVEL=DEBUG"
+
+    $ kubectl expose deployment service-that-logs \
+        --type=LoadBalancer \
+        --port=8081 \
+        --target-port=8080  
+
+    $ kubectl get services
+    NAME                TYPE           CLUSTER-IP       EXTERNAL-IP   PORT(S)          AGE
+    cassandra           ClusterIP      None             <none>        9042/TCP         7d16h
+    kubernetes          ClusterIP      10.96.0.1        <none>        443/TCP          20d
+    service-that-logs   LoadBalancer   10.107.119.207   <pending>     8081:32033/TCP   111s
+
+    $ curl localhost:32033
+    Howdy, curl/7.58.0!
 
 Next Steps
 ===========

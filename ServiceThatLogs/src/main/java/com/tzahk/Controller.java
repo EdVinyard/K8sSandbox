@@ -18,9 +18,9 @@ public class Controller {
         log.info("request from " + userAgent);
 
         if (Strings.isNullOrEmpty(userAgent)) {
-            return "Hello, stranger!";
+            return "Howdy, stranger!";
         } else {
-            return "Hello, " + userAgent + "!";
+            return "Howdy, " + userAgent + "!";
         }
     }
 }
