@@ -447,10 +447,9 @@ keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacen
 Next Steps
 ===========
 
-1. Test the Cassandra client app connecting to a Cassandra server running in
-Minikube (via an exposed K8s Service, I think).
+1. Define the Java Spring application using YAML instead of Bash script.
 
-1. Deploy both the Java Spring application and Cassandra into **Minikube**.
+1. Rely on K8s ConfigMaps instead of env vars set at deploy-time.
 
 1. Deploy both the Java Spring application and Cassandra into **GCP**.
 
