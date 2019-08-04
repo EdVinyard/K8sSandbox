@@ -362,15 +362,73 @@ just to differentiate between the old and new images.
     $ curl localhost:32033
     Howdy, curl/7.58.0!
 
+The [run_k8s_service.sh](run_k8s_service.sh) script describes this process in
+more detail, and prevents me having to use a more sophisticated setup until I
+get my application to talk to Cassandra.
+
+DNS Problems
+-------------
+
+[Kubernetes DNS Troubleshooting Guide](https://kubernetes.io/docs/tasks/administer-cluster/dns-debugging-resolution/)
+
+The DNS service in my K8s cluster is not running (properly):
+
+    $ kubectl get pods --namespace=kube-system
+    NAME                                    READY   STATUS             RESTARTS   AGE
+    coredns-5c98db65d4-9mxkq                0/1     CrashLoopBackOff   65         21d
+    coredns-5c98db65d4-pc2vm                0/1     CrashLoopBackOff   65         21d
+    etcd-minikube                           1/1     Running            5          21d
+    kube-addon-manager-minikube             1/1     Running            5          21d
+    ...
+
+Notice the _READY_, _STATUS_, and _RESTARTS_ values for `coredns`. The logs for
+one such crashed pod pointed me in the right direction:
+
+    $ kubectl -n kube-system logs -f coredns-5c98db65d4-9mxkq
+    .:53
+    2019-08-04T00:33:19.719Z [INFO] CoreDNS-1.3.1
+    2019-08-04T00:33:19.719Z [INFO] linux/amd64, go1.11.4, 6b56a9c
+    CoreDNS-1.3.1
+    linux/amd64, go1.11.4, 6b56a9c
+    2019-08-04T00:33:19.719Z [INFO] plugin/reload: Running configuration MD5 = 5d5369fbc12f985709b924e721217843
+    2019-08-04T00:33:19.720Z [FATAL] plugin/loop: Loop (127.0.0.1:59785 -> :53) detected for zone ".", see https://coredns.io/plugins/loop#troubleshooting. Query: "HINFO 5223451210285519832.6127911068346062510."
+
+[This "hacky solution" seemed to work](https://stackoverflow.com/a/53414041/150),
+although I tried the "preferred solution without luck (I couldn't find the loop
+in my host system's resolv config).
+
+> Edit the CoreDNS configmap:
+>
+>       kubectl -n kube-system edit configmap coredns
+>
+> Remove or comment out the line with "loop", save and exit.
+> 
+> Then remove the CoreDNS pods, so new ones can be created with new config:
+>
+>       kubectl -n kube-system delete pod -l k8s-app=kube-dns
+
+Now, 
+
+    $ kubectl exec -it busybox -- nslookup kubernetes.default
+    Server:    10.96.0.10
+    Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+    nslookup: can't resolve 'kubernetes.default'
+    command terminated with exit code 1
+
+    $ kubectl exec -it busybox -- nslookup cassandra
+    Server:    10.96.0.10
+    Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
+
+    Name:      cassandra
+    Address 1: 172.17.0.3 cassandra-0.cassandra.default.svc.cluster.local
+
+
 Next Steps
 ===========
 
 1. Test the Cassandra client app connecting to a Cassandra server running in
 Minikube (via an exposed K8s Service, I think).
-
-1. Rework this project to use Maven instead of Gradle.
-    - https://codefresh.io/howtos/using-docker-maven-maven-docker/
-    - https://ro14nd.de/dmp-not-so-bad
 
 1. Deploy both the Java Spring application and Cassandra into **Minikube**.
 

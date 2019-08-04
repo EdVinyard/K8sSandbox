@@ -9,7 +9,13 @@ import com.google.common.base.Strings;
 
 @RestController
 public class Controller {
-    final Logger log = LoggerFactory.getLogger(Controller.class);
+    private final Logger log = LoggerFactory.getLogger(Controller.class);
+
+    private final Cassandra cassandra;
+
+    public Controller(final Cassandra cassandra) {
+        this.cassandra = cassandra;
+    }
 
     @GetMapping("/")
     public String index(
@@ -22,5 +28,10 @@ public class Controller {
         } else {
             return "Howdy, " + userAgent + "!";
         }
+    }
+
+    @GetMapping("/v")
+    public String version() {
+        return cassandra.version();
     }
 }
