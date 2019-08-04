@@ -428,7 +428,12 @@ The Java app crashes, but with a different error:
 
     You provided explicit contact points, the local DC must be specified (see basic.load-balancing-policy.local-datacenter in the config)
 
-Next, I needed to set the Cassandra datacenter name correctly using
+I just guessed and set the datacenter name to "local", but that led to
+`NoNodeAvailableException`s being thrown because the Cassandra driver was
+trying to find some member of the "local" datacanter at the address I provided,
+but that wasn't the **correct** name of the datacenter.
+
+I needed to set the Cassandra datacenter name _correctly_ using
 `CqlSessionFactory.withLocalDatacenter(<name>)`. To find it, [query the system
 keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacenter-name-in-cqlsh).
 
@@ -441,7 +446,6 @@ keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacen
         DC1-K8Demo
 
         (1 rows)
-
 
 
 Next Steps
