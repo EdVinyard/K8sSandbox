@@ -17,15 +17,17 @@ import com.datastax.oss.driver.api.core.cql.Row;
 @Service
 @Scope(value=ConfigurableBeanFactory.SCOPE_SINGLETON)
 public class Cassandra {
-    private final Logger log = LoggerFactory.getLogger(Application.class);
+    private final Logger log = LoggerFactory.getLogger(Cassandra.class);
+    private final CassandraConfig config;
     private final CqlSession session;
-    private final InetSocketAddress serverAddress = 
-        InetSocketAddress.createUnresolved("cassandra", 9042);
 
-    public Cassandra() {
+    public Cassandra(CassandraConfig config) {
+        this.config = config;
+        log.info("using Cassandra at " + config.host() 
+            + " in datacenter " + config.datacenter());
         session = CqlSession.builder()
-            .withLocalDatacenter("local")
-            .addContactPoint(serverAddress)
+            .withLocalDatacenter(config.datacenter())
+            .addContactPoint(config.host())
             .build();
     }
 

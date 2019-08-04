@@ -407,7 +407,8 @@ in my host system's resolv config).
 >
 >       kubectl -n kube-system delete pod -l k8s-app=kube-dns
 
-Now, 
+Now, things look a little better, but the inability to resolve
+`kubernetes.default` still worries me a little.
 
     $ kubectl exec -it busybox -- nslookup kubernetes.default
     Server:    10.96.0.10
@@ -422,6 +423,25 @@ Now,
 
     Name:      cassandra
     Address 1: 172.17.0.3 cassandra-0.cassandra.default.svc.cluster.local
+
+The Java app crashes, but with a different error:
+
+    You provided explicit contact points, the local DC must be specified (see basic.load-balancing-policy.local-datacenter in the config)
+
+Next, I needed to set the Cassandra datacenter name correctly using
+`CqlSessionFactory.withLocalDatacenter(<name>)`. To find it, [query the system
+keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacenter-name-in-cqlsh).
+
+    $ kubectl port-forward cassandra-0 9042 &
+
+    $ cqlsh -e "select data_center from system.local;"
+
+        data_center
+        -------------
+        DC1-K8Demo
+
+        (1 rows)
+
 
 
 Next Steps

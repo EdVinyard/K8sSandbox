@@ -4,6 +4,9 @@ export SERVICE=service-that-logs
 export LOG_LEVEL=DEBUG
 export APPLICATION_PORT=8080
 export SERVICE_PORT=8081
+export CASSANDRA_HOSTNAME=cassandra
+export CASSANDRA_PORT=9042
+export CASSANDRA_DATACENTER=DC1-K8Demo
 
 # from https://stackoverflow.com/a/25515370/150
 yell() { echo "$0: $*" >&2; }
@@ -29,7 +32,11 @@ try kubectl run $DEPLOYMENT \
     --image=$IMAGE \
     --image-pull-policy=Never \
     --port=$APPLICATION_PORT \
-    --env="LOG_LEVEL=$LOG_LEVEL"
+    --env="LOG_LEVEL=$LOG_LEVEL" \
+    --env="CASSANDRA_HOSTNAME=$CASSANDRA_HOSTNAME" \
+    --env="CASSANDRA_PORT=$CASSANDRA_PORT" \
+    --env="CASSANDRA_DATACENTER=$CASSANDRA_DATACENTER"
+
 try kubectl expose deployment $SERVICE \
     --type=LoadBalancer \
     --port=$SERVICE_PORT \
