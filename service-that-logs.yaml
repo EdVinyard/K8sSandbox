@@ -1,0 +1,81 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: service-that-logs-config
+  namespace: default
+data:
+  LOG_LEVEL: INFO
+  CASSANDRA_HOSTNAME: cassandra
+  CASSANDRA_PORT: "9042"
+  CASSANDRA_DATACENTER: DC1-K8Demo
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  annotations:
+    deployment.kubernetes.io/revision: "1"
+  creationTimestamp: null
+  generation: 1
+  labels:
+    run: service-that-logs
+  name: service-that-logs
+  selfLink: /apis/extensions/v1beta1/namespaces/default/deployments/service-that-logs
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      run: service-that-logs
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        run: service-that-logs
+    spec:
+      containers:
+      - envFrom:
+        - configMapRef:
+            name: service-that-logs-config
+        image: service-that-logs
+        imagePullPolicy: Never
+        name: service-that-logs
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+        resources: {}
+        terminationMessagePath: /dev/termination-log
+        terminationMessagePolicy: File
+      dnsPolicy: ClusterFirst
+      restartPolicy: Always
+      schedulerName: default-scheduler
+      securityContext: {}
+      terminationGracePeriodSeconds: 30
+status: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  creationTimestamp: null
+  labels:
+    run: service-that-logs
+  name: service-that-logs
+  selfLink: /api/v1/namespaces/default/services/service-that-logs
+spec:
+  externalTrafficPolicy: Cluster
+  ports:
+  - nodePort: 30434
+    port: 8081
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    run: service-that-logs
+  sessionAffinity: None
+  type: LoadBalancer
+status:
+  loadBalancer: {}

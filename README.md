@@ -448,13 +448,52 @@ keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacen
         (1 rows)
 
 
+Monday, Aug 5
+==============
+
+After reading about using _ConfigMap_ contents
+[selectively](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#define-container-environment-variables-using-configmap-data)
+or [in whole
+maps](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#configure-all-key-value-pairs-in-a-configmap-as-container-environment-variables)
+to set environment variables, I started working on YAML files for
+_ServiceThatLogs_.
+
+    $ kubectl get deploy service-that-logs -o=yaml --export > service-that-logs.yaml
+
+Got me started, then manually preparing a ConfigMap YAML...
+
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: service-that-logs-config
+      namespace: default
+    data:
+      LOG_LEVEL: DEBUG
+      CASSANDRA_HOSTNAME: cassandra
+      CASSANDRA_PORT: "9042"
+      CASSANDRA_DATACENTER: DC1-K8Demo
+
+And replacing the individual environment variables in the service YAML...
+
+      containers:
+      - env:
+        - name: LOG_LEVEL
+          value: DEBUG
+          ...
+
+with a single "bulk" reference to the _ConfigMap_...
+
+      containers:
+      - envFrom:
+        - configMapRef:
+            dname: service-that-logs-config
+
+
 Next Steps
 ===========
-
-1. Define the Java Spring application using YAML instead of Bash script.
-
-1. Rely on K8s ConfigMaps instead of env vars set at deploy-time.
 
 1. Deploy both the Java Spring application and Cassandra into **GCP**.
 
 1. Debug the Cassandra client application running in Docker/K8s.
+
+1. Implement a feature-toggle that doesn't require pod recreation.
