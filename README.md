@@ -410,6 +410,7 @@ in my host system's resolv config).
 Now, things look a little better, but the inability to resolve
 `kubernetes.default` still worries me a little.
 
+```yaml
     $ kubectl exec -it busybox -- nslookup kubernetes.default
     Server:    10.96.0.10
     Address 1: 10.96.0.10 kube-dns.kube-system.svc.cluster.local
@@ -423,6 +424,7 @@ Now, things look a little better, but the inability to resolve
 
     Name:      cassandra
     Address 1: 172.17.0.3 cassandra-0.cassandra.default.svc.cluster.local
+```
 
 The Java app crashes, but with a different error:
 
@@ -437,6 +439,7 @@ I needed to set the Cassandra datacenter name _correctly_ using
 `CqlSessionFactory.withLocalDatacenter(<name>)`. To find it, [query the system
 keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacenter-name-in-cqlsh).
 
+```bash
     $ kubectl port-forward cassandra-0 9042 &
 
     $ cqlsh -e "select data_center from system.local;"
@@ -446,7 +449,7 @@ keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacen
         DC1-K8Demo
 
         (1 rows)
-
+```
 
 Monday, Aug 5
 ==============
@@ -462,6 +465,7 @@ _ServiceThatLogs_.
 
 Got me started, then manually preparing a ConfigMap YAML...
 
+```yaml
     apiVersion: v1
     kind: ConfigMap
     metadata:
@@ -472,28 +476,181 @@ Got me started, then manually preparing a ConfigMap YAML...
       CASSANDRA_HOSTNAME: cassandra
       CASSANDRA_PORT: "9042"
       CASSANDRA_DATACENTER: DC1-K8Demo
+```
 
 And replacing the individual environment variables in the service YAML...
 
+```yaml
       containers:
       - env:
         - name: LOG_LEVEL
           value: DEBUG
           ...
+```
 
 with a single "bulk" reference to the _ConfigMap_...
 
+```yaml
       containers:
       - envFrom:
         - configMapRef:
             dname: service-that-logs-config
+```
+
+Saturday, August 10
+====================
+
+1. Signed up for GCP. Sadly, had to activate billing to try out GCP Kubernetes
+Engine.
+
+1. Created a Kubernetes Cluster using the Web UI equivalent to
+
+    ```bash
+    $ gcloud beta container \
+        --project "maximal-copilot-249415" clusters create "test" \
+        --zone "us-central1-a" \
+        --no-enable-basic-auth \
+        --cluster-version "1.12.8-gke.10" \
+        --machine-type "n1-standard-1" \
+        --image-type "COS" \
+        --disk-type "pd-standard" \
+        --disk-size "100" \
+        --scopes "https://www.googleapis.com/auth/devstorage.read_only","https://www.googleapis.com/auth/logging.write","https://www.googleapis.com/auth/monitoring","https://www.googleapis.com/auth/servicecontrol","https://www.googleapis.com/auth/service.management.readonly","https://www.googleapis.com/auth/trace.append" \
+        --num-nodes "3" \
+        --enable-cloud-logging \
+        --enable-cloud-monitoring \
+        --enable-ip-alias \
+        --network "projects/maximal-copilot-249415/global/networks/default" \
+        --subnetwork "projects/maximal-copilot-249415/regions/us-central1/subnetworks/default" \
+        --default-max-pods-per-node "110" \
+        --addons HorizontalPodAutoscaling,HttpLoadBalancing \
+        --enable-autoupgrade \
+        --enable-autorepair
+    ```
+
+1. [install Google Cloud SDK on
+Ubuntu](https://cloud.google.com/sdk/docs/downloads-apt-get)
+
+1. [install kubectx](https://github.com/ahmetb/kubectx), which I've been using
+at work and makes cluster and namespace awareness and switching much easier.  I
+downloaded the kubectx.deb package from the unstable Debian package repository.
+
+        $ sudo apt install ~/Downloads/kubectx_0.6.3-2_all.deb
+
+1. [set up access to my new GCP cluster through
+`kubectl`](https://cloud.google.com/kubernetes-engine/docs/how-to/cluster-access-for-kubectl).
+
+        $ gcloud container clusters get-credentials test
+
+    Incidentally, I learned about
+    [tput](https://linux.101hacks.com/ps1-examples/prompt-color-using-tput/), a
+    much nicer way to set color and text attributes than raw ANSI codes. A [full
+    list of color codes can be
+    generated](https://unix.stackexchange.com/questions/269077/tput-setaf-color-table-how-to-determine-color-codes).
+
+1. Get Cassandra "installed" in the cluster. Reread original
+[Cassandra-on-Minkube
+instructions](https://kubernetes.io/docs/tutorials/stateful-application/cassandra/).
+
+    Separated the `StorageClass` section of cassandra-statefulset.yaml into a
+    different file and changed the name so that the storage class names would match
+    in the Minikube and GCP environments. Notice that the name _standard_ matches
+    the default GCP K8s storage class name (it was _fast_ before).
+
+        kind: StorageClass
+        apiVersion: storage.k8s.io/v1
+        metadata:
+          name: standard
+        provisioner: k8s.io/minikube-hostpath
+        parameters:
+          type: pd-ssd
+
+    Then
+
+        $ k apply -f cassandra-statefulset.yaml     
+
+    It took almost 4 minutes to spin up the three-node Cassandra cluster.     
+
+1. Upload the Spring Boot Web Service Docker Image.
+
+        $ gcloud auth configure-docker
+        The following settings will be added to your Docker config file 
+        located at [/home/ed/.docker/config.json]:
+        {
+        "credHelpers": {
+            "gcr.io": "gcloud", 
+            "us.gcr.io": "gcloud", 
+            "eu.gcr.io": "gcloud", 
+            "asia.gcr.io": "gcloud", 
+            "staging-k8s.gcr.io": "gcloud", 
+            "marketplace.gcr.io": "gcloud"
+        }
+        }
+
+        Do you want to continue (Y/n)?  y
+
+        Docker configuration file updated.
+
+        $ docker push gcr.io/maximal-copilot-249415/service-that-logs
+        The push refers to repository [gcr.io/maximal-copilot-249415/service-that-logs]
+        399738b74712: Pushed 
+        2ad1448ed264: Pushed 
+        597ef0c21b96: Pushed 
+        1bfeebd65323: Layer already exists 
+        latest: digest: sha256:56ecf745d2eea68dcbd01c6dac8387355aa19434afef3da1eefc0635c960ad51 size: 1163
+
+        $ gcloud container images list
+        NAME
+        gcr.io/maximal-copilot-249415/service-that-logs
+        Only listing images in gcr.io/maximal-copilot-249415. Use --repository to list images in other repositories.
+
+1. Start the Spring Boot Web Service.
+
+        $ k apply -f service-that-logs.yaml
+
+        $ k get service service-that-logs
+        NAME                TYPE           CLUSTER-IP    EXTERNAL-IP      PORT(S)          AGE
+        service-that-logs   LoadBalancer   10.0.14.167   104.154.232.75   8081:30434/TCP   49m
+
+1. Test the Spring Boot Web Service.
+
+        $ curl 104.154.232.75:8081 && echo && date -u
+        Howdy, curl/7.58.0!
+        Sat Aug 10 18:29:15 UTC 2019
+
+        $ k logs service-that-logs-5fd948454c-wmvwx | grep curl
+        2019-08-10 18:29:15.050  INFO 1 --- [nio-8080-exec-9] com.tzahk.Controller : request from curl/7.58.0
+
+        $ # prove that the web app can connect to the Cassandra cluster
+        $ curl http://104.154.232.75:8081/v && echo
+        3.11.2
+
+1. Tear down the GCP K8s cluster.
+
+        $ gcloud container clusters delete test
+        The following clusters will be deleted.
+        - [test] in [us-central1-a]
+
+        Do you want to continue (Y/n)?  y
+
+        Deleting cluster test...done.                                                                                                                                                           
+        Deleted [https://container.googleapis.com/v1/projects/maximal-copilot-249415/zones/us-central1-a/clusters/test].    
+
+1. Finally, check in the GCP Control Panel to make sure that your cluster and
+storage is deleted. *Manually delete your Docker images.*
 
 
 Next Steps
 ===========
 
-1. Deploy both the Java Spring application and Cassandra into **GCP**.
-
 1. Debug the Cassandra client application running in Docker/K8s.
 
+1. Factor out common configuration from the Spring and Cassandra YAML:
+    - CASSANDRA_DC / CASSANDRA_DATACENTER
+    - CASSANDRA_CLUSTER_NAME / hard-coded in Spring
+    - CQL Port number
+
+1. Factor out per-environment (Minikube vs. GCP K8s) differences. Understand
+how Terraform and/or Helm fit into this
+    
 1. Implement a feature-toggle that doesn't require pod recreation.

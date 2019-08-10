@@ -5,6 +5,10 @@ metadata:
   namespace: default
 data:
   LOG_LEVEL: INFO
+  # TODO: factor these three out to a common ConfigMap; these values also exist
+  # in cassandra-statefulset.yaml.
+  # https://kubernetes.io/docs/tutorials/stateful-application/cassandra/ explains
+  # how these values configure the Docker images.
   CASSANDRA_HOSTNAME: cassandra
   CASSANDRA_PORT: "9042"
   CASSANDRA_DATACENTER: DC1-K8Demo
