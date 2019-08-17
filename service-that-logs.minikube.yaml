@@ -46,11 +46,13 @@ spec:
       - envFrom:
         - configMapRef:
             name: service-that-logs-config
-        image: service-that-logs
+        image: service-that-logs:debug
         imagePullPolicy: Never
         name: service-that-logs
         ports:
         - containerPort: 8080
+          protocol: TCP
+        - containerPort: 8000
           protocol: TCP
         resources: {}
         terminationMessagePath: /dev/termination-log
