@@ -591,6 +591,8 @@ instructions](https://kubernetes.io/docs/tutorials/stateful-application/cassandr
 
         Docker configuration file updated.
 
+        $ docker tag service-that-logs:latest gcr.io/maximal-copilot-249415/service-that-logs
+
         $ docker push gcr.io/maximal-copilot-249415/service-that-logs
         The push refers to repository [gcr.io/maximal-copilot-249415/service-that-logs]
         399738b74712: Pushed 
@@ -881,6 +883,47 @@ open even in a "release" build.)
 -e "JAVA_TOOL_OPTIONS=\"-agentlib:jdwp=transport=dt_socket,address=8000,server=y,suspend=n\""
 
 
+Debugging an Application Running in GCP K8s
+--------------------------------------------
+
+1. Replace the tagged local Docker image with a debug-enabled image.
+
+        $ docker rmi gcr.io/maximal-copilot-249415/service-that-logs:latest
+
+        $ docker tag service-that-logs:debug gcr.io/maximal-copilot-249415/service-that-logs:debug
+
+1. Push the Docker image to the GCP repository.
+
+        $ docker push gcr.io/maximal-copilot-249415/service-that-logs
+
+1. Modify the deployment specification to reference the debug-enabeld Docker
+image and expose the remote debugger port.
+
+    ```bash
+    $ git diff service-that-logs.gcp.yaml 
+    diff --git a/service-that-logs.gcp.yaml b/service-that-logs.gcp.yaml
+    index fe8fda0..89e590e 100644
+    --- a/service-that-logs.gcp.yaml
+    +++ b/service-that-logs.gcp.yaml
+    @@ -46,12 +46,14 @@ spec:
+        - envFrom:
+            - configMapRef:
+                name: service-that-logs-config
+    -        image: gcr.io/maximal-copilot-249415/service-that-logs
+    +        image: gcr.io/maximal-copilot-249415/service-that-logs:debug
+            imagePullPolicy: IfNotPresent
+            name: service-that-logs
+            ports:
+            - containerPort: 8080
+            protocol: TCP
+    +        - containerPort: 8000
+    +          protocol: TCP
+            resources: {}
+            terminationMessagePath: /dev/termination-log
+            terminationMessagePolicy: File
+    ```
+
+
 Cleanup
 --------
 
@@ -890,18 +933,14 @@ Cleanup
         ...                                                                                    
         Deleted [https://container.googleapis.com/v1/projects/maximal-copilot-249415/zones/us-central1-a/clusters/test].
 
-1. Delete the Container image.
+1. Delete the Container image. I did this from the command line using `gcloud
+container images list` and `gcloud container images delete <image-name>` but it
+was a little cumbersome. I should refine this process next time around.
 
 1. Stop Minikube.
 
-1. Finally, check in the GCP Control Panel to make sure that your cluster and
-storage is deleted. *Manually delete your Docker images.*
-
-
-Debugging an Application Running in GCP K8s
---------------------------------------------
-
-STARTHERE
+1. Confirm in the GCP Control Panel that your cluster, storage, and images are
+deleted.
 
 
 Next Steps

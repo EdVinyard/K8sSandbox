@@ -46,11 +46,13 @@ spec:
       - envFrom:
         - configMapRef:
             name: service-that-logs-config
-        image: gcr.io/maximal-copilot-249415/service-that-logs
+        image: gcr.io/maximal-copilot-249415/service-that-logs:debug
         imagePullPolicy: IfNotPresent
         name: service-that-logs
         ports:
         - containerPort: 8080
+          protocol: TCP
+        - containerPort: 8000
           protocol: TCP
         resources: {}
         terminationMessagePath: /dev/termination-log
