@@ -11,7 +11,10 @@ import com.datastax.oss.driver.api.core.cql.Row;
  * See https://github.com/datastax/java-driver/blob/4.x/examples/src/main/java/com/datastax/oss/driver/examples/basic/ReadCassandraVersion.java
  */
 public class App {
+    private static final Logger log = LoggerFactory.getLogger(App.class);
+
     public static void main(String[] args) {
+        
         System.out.println("Hello, Cassandra!");
 
         // The Session is what you use to execute queries. It is thread-safe
@@ -28,7 +31,9 @@ public class App {
             // Extract the value of the first (and only) column from the row.
             assert row != null;
             String releaseVersion = row.getString("release_version");
-            System.out.printf("Cassandra version is: %s%n", releaseVersion);
+            log.info(String.format(
+                "Cassandra version is: %s%n", 
+                releaseVersion));
         }
     }
 }
