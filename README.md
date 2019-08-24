@@ -943,6 +943,64 @@ was a little cumbersome. I should refine this process next time around.
 deleted.
 
 
+Saturday, August 24, 2019
+==========================
+
+Repeat GCP Procedure
+---------------------
+
+1. Fire up Minikube and confirm the application still works.
+
+    ```bash
+    $ sudo minikube start
+    [sudo] password for ed: 
+    ...
+    🏄  Done! kubectl is now configured to use "minikube"
+
+    $ ./test_service_that_logs.sh 
+    Testing context minikube 10.104.121.54:8081...
+      / returned Howdy, curl/7.58.0!
+      /v returned 3.11.2
+
+    ```
+
+1. Recreate the cluster in GCP, configure `kubectl` access, and deploy the
+whole system.
+
+    ```bash
+    $ ./create_gcp_cluster.sh
+    ...
+    NAME  LOCATION       MASTER_VERSION  MASTER_IP      MACHINE_TYPE   NODE_VERSION   NUM_NODES  STATUS
+    test  us-central1-a  1.12.8-gke.10   104.154.99.74  n1-standard-1  1.12.8-gke.10  3          RUNNING
+
+    $ gcloud container clusters get-credentials test
+    Fetching cluster endpoint and auth data.
+    kubeconfig entry generated for test.
+
+    $ kc -d test
+    Deleting context "test"...
+    deleted context test from /home/ed/.kube/config
+
+    $ kc test=gke_maximal-copilot-249415_us-central1-a_test
+    Context "gke_maximal-copilot-249415_us-central1-a_test" renamed to "test".
+
+    $ k apply -f cassandra-service.yaml
+
+    $ k apply -f cassandra-statefulset.yaml     
+
+    $ docker push gcr.io/maximal-copilot-249415/service-that-logs
+    The push refers to repository [gcr.io/maximal-copilot-249415/service-that-logs]
+    ...
+    latest: digest: sha256:56ecf745d2eea68dcbd01c6dac8387355aa19434afef3da1eefc0635c960ad51 size: 1163
+
+    $ k apply -f service-that-logs.gcp.yaml
+
+    $ ./test_service_that_logs.sh 
+    Testing context test 35.225.175.156:8081...
+      / returned Howdy, curl/7.58.0!
+      /v returned 3.11.2
+    ```
+
 Next Steps
 ===========
 
