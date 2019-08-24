@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: common
+  namespace: default
+data:
+  LOG_LEVEL: INFO
+  CASSANDRA_DATACENTER: DC1-K8Demo
+  # TODO: factor these three out to a common ConfigMap; these values also exist
+  # in cassandra-statefulset.yaml.
+  # https://kubernetes.io/docs/tutorials/stateful-application/cassandra/ explains
+  # how these values configure the Docker images.
+  CASSANDRA_HOSTNAME: cassandra
+  CASSANDRA_PORT: "9042"
+  

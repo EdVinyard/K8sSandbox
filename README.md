@@ -1,3 +1,29 @@
+<!-- START doctoc generated TOC please keep comment here to allow auto update -->
+<!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
+**Table of Contents**
+
+- [Saturday, July 13, 2019](#saturday-july-13-2019)
+- [Saturday, July 20, 2019](#saturday-july-20-2019)
+  - [Cassandra as a _StatefulSet_](#cassandra-as-a-_statefulset_)
+- [Saturday, July 28, 2019](#saturday-july-28-2019)
+- [Saturday, August 3, 2019](#saturday-august-3-2019)
+  - [Manual Development Cycle](#manual-development-cycle)
+  - [DNS Problems](#dns-problems)
+- [Monday, August 5](#monday-august-5)
+- [Saturday, August 10](#saturday-august-10)
+- [Saturday, August 17, 2019](#saturday-august-17-2019)
+  - [Repeat GCP Procedure](#repeat-gcp-procedure)
+  - [Debugging an Application Running in Minikube](#debugging-an-application-running-in-minikube)
+  - [Debugging an Application Running in GCP K8s](#debugging-an-application-running-in-gcp-k8s)
+  - [Cleanup](#cleanup)
+- [Saturday, August 24, 2019](#saturday-august-24-2019)
+  - [Repeat GCP Procedure](#repeat-gcp-procedure-1)
+  - [Consolidate Application Configuration](#consolidate-application-configuration)
+  - [Cleanup](#cleanup-1)
+- [Next Steps](#next-steps)
+
+<!-- END doctoc generated TOC please keep comment here to allow auto update -->
+
 Saturday, July 13, 2019
 ========================
 
@@ -451,8 +477,8 @@ keyspace](https://stackoverflow.com/questions/19489498/getting-cassandra-datacen
         (1 rows)
 ```
 
-Monday, Aug 5
-==============
+Monday, August 5
+=================
 
 After reading about using _ConfigMap_ contents
 [selectively](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#define-container-environment-variables-using-configmap-data)
@@ -1001,15 +1027,62 @@ whole system.
       /v returned 3.11.2
     ```
 
+Consolidate Application Configuration
+--------------------------------------
+
+1. Move the Cassandra data center value (and the rest of the
+_service-that-logs_) configuration into a separate file
+`common.configmap.yaml`.
+
+1. Apply the changes.
+    - on Minikube, Cassandra StatefulSet must be deleted and re-created
+    - on GCP, rolling update works as expected
+    - _service-that-logs_ `apply` works in both environments
+    - run the test script in both environments
+
+1. Write a Python script to produce text templates from a YAML template and
+YAML parameters. Combine all of the resource description YAML files into a
+single file and factor out the Minikube- and GCP-specific values into a JSON
+file.
+
+    Now we can apply the resource descriptions all at once, plugging in
+    variables.
+
+        $ k apply -f <(./rendertemplate.py app.yaml.template app.gcp.json)
+
+Cleanup
+--------
+
+1. Delete the GCP K8s cluster and Google Container Registry image.
+
+        $ gcloud container clusters delete test
+
+        $ export IMAGE_NAME=$(gcloud container images list --format=config | sed 's/name = //')
+        
+        $ export IMAGE_TAG=$(gcloud container images list-tags gcr.io/maximal-copilot-249415/service-that-logs --format=config | grep digest | sed 's/digest = sha256://')
+
+        $ 
+
+1. Delete the Container image. I did this from GCP Web Console because no
+matter what I did, `gcloud` gave me useless, frustrating error messages about
+the format of my image name/tag.
+
+        ERROR: (gcloud.container.images.delete) [gcr.io/maximal-copilot-123456/service-that-logs@sha265:68ba913777862fbd07d27d1284293c4e8a0d0a188b7a98efe8d5876fe3123456] digest must be of the form "sha256:<digest>".
+
+1. Stop Minikube.
+
+1. Confirm in the GCP Control Panel that your cluster, storage, and images are
+deleted.
+
+
 Next Steps
 ===========
 
-1. Factor out common configuration from the Spring and Cassandra YAML:
-    - CASSANDRA_DC / CASSANDRA_DATACENTER
-    - CASSANDRA_CLUSTER_NAME / hard-coded in Spring
-    - CQL Port number
-
-1. Factor out per-environment (Minikube vs. GCP K8s) differences. Understand
-how Terraform and/or Helm fit into this
+1. How would Terraform and/or Helm improve upon a text template solution and
+`kubectl apply`?
     
 1. Implement a feature-toggle that doesn't require pod recreation.
+
+1. Add Kafka to the application.
+
+1. Add Flink to the application.

@@ -1,0 +1,4 @@
+{
+    "STL_IMAGE": "gcr.io/maximal-copilot-249415/service-that-logs:debug",
+    "STL_IMAGE_PULL_POLICY": "IfNotPresent"
+}

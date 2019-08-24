@@ -1,18 +1,3 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: service-that-logs-config
-  namespace: default
-data:
-  LOG_LEVEL: INFO
-  # TODO: factor these three out to a common ConfigMap; these values also exist
-  # in cassandra-statefulset.yaml.
-  # https://kubernetes.io/docs/tutorials/stateful-application/cassandra/ explains
-  # how these values configure the Docker images.
-  CASSANDRA_HOSTNAME: cassandra
-  CASSANDRA_PORT: "9042"
-  CASSANDRA_DATACENTER: DC1-K8Demo
----
 apiVersion: extensions/v1beta1
 kind: Deployment
 metadata:
@@ -45,15 +30,17 @@ spec:
       containers:
       - envFrom:
         - configMapRef:
-            name: service-that-logs-config
+            name: common
         image: gcr.io/maximal-copilot-249415/service-that-logs:debug
         imagePullPolicy: IfNotPresent
         name: service-that-logs
         ports:
         - containerPort: 8080
           protocol: TCP
+          name: http
         - containerPort: 8000
           protocol: TCP
+          name: debug
         resources: {}
         terminationMessagePath: /dev/termination-log
         terminationMessagePolicy: File

@@ -57,7 +57,10 @@ spec:
           - name: CASSANDRA_CLUSTER_NAME
             value: "K8Demo"
           - name: CASSANDRA_DC
-            value: "DC1-K8Demo"
+            valueFrom:
+              configMapKeyRef:
+                name: common
+                key: CASSANDRA_DATACENTER
           - name: CASSANDRA_RACK
             value: "Rack1-K8Demo"
           - name: POD_IP
