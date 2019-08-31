@@ -1050,6 +1050,82 @@ file.
 
         $ k apply -f <(./rendertemplate.py app.yaml.template app.gcp.json)
 
+
+Saturday, Aug 31
+=================
+
+Saturday, August 24, 2019
+==========================
+
+Repeat GCP Procedure
+---------------------
+
+1. Fire up Minikube and confirm the application still works.
+
+    ```bash
+    $ sudo minikube start
+    [sudo] password for ed: 
+    ...
+    🏄  Done! kubectl is now configured to use "minikube"
+    ```
+
+    You may have to wait a minute for the services to come up once the Cluster
+    is alive.  Then...
+
+    ```bash
+    $ ./test_service_that_logs.sh 
+    Testing context minikube 10.104.121.54:8081...
+      / returned Howdy, curl/7.58.0!
+      /v returned 3.11.2
+
+    ```
+
+1. Recreate the cluster in GCP, configure `kubectl` access, and deploy the
+whole system.
+
+    ```bash
+    $ ./create_gcp_cluster.sh
+    ...
+    NAME  LOCATION       MASTER_VERSION  MASTER_IP      MACHINE_TYPE   NODE_VERSION   NUM_NODES  STATUS
+    test  us-central1-a  1.12.8-gke.10   104.154.99.74  n1-standard-1  1.12.8-gke.10  3          RUNNING
+
+    $ gcloud container clusters get-credentials test
+    Fetching cluster endpoint and auth data.
+    kubeconfig entry generated for test.
+
+    $ kc -d test
+    Deleting context "test"...
+    deleted context test from /home/ed/.kube/config
+
+    $ kc test=gke_maximal-copilot-249415_us-central1-a_test
+    Context "gke_maximal-copilot-249415_us-central1-a_test" renamed to "test".
+
+    $ docker push gcr.io/maximal-copilot-249415/service-that-logs
+    The push refers to repository [gcr.io/maximal-copilot-249415/service-that-logs]
+    ...
+    latest: digest: sha256:56ecf745d2eea68dcbd01c6dac8387355aa19434afef3da1eefc0635c960ad51 size: 1163
+
+    $ k apply -f app.gcp.yaml
+
+    $ ./test_service_that_logs.sh 
+    Testing context test 35.225.175.156:8081...
+      / returned Howdy, curl/7.58.0!
+      /v returned 3.11.2
+    ```
+
+Feature Toggle without Restart
+-------------------------------
+
+The idea is to [mount a _ConfigMap_ as a
+directory](https://kubernetes.io/docs/tasks/configure-pod-container/configure-pod-configmap/#add-configmap-data-to-a-volume),
+then [create a watch that notices changes in the
+files](https://docs.oracle.com/javase/tutorial/essential/io/notification.html).
+Each file name represents a _ConfigMap_ key, and the value is the contents of
+the file. I've started this change in my Java Application, but it should really
+be tested in a stand-alone Java application first, so that Docker/Kubernetes
+aren't involved until I've got the hang of it.
+
+
 Cleanup
 --------
 
@@ -1057,15 +1133,15 @@ Cleanup
 
         $ gcloud container clusters delete test
 
+1. Delete the Container image. I did this from GCP Web Console because no
+matter what I did, `gcloud` gave me useless, frustrating error messages about
+the format of my image name/tag.
+
         $ export IMAGE_NAME=$(gcloud container images list --format=config | sed 's/name = //')
         
         $ export IMAGE_TAG=$(gcloud container images list-tags gcr.io/maximal-copilot-249415/service-that-logs --format=config | grep digest | sed 's/digest = sha256://')
 
-        $ 
-
-1. Delete the Container image. I did this from GCP Web Console because no
-matter what I did, `gcloud` gave me useless, frustrating error messages about
-the format of my image name/tag.
+        $ #!@$
 
         ERROR: (gcloud.container.images.delete) [gcr.io/maximal-copilot-123456/service-that-logs@sha265:68ba913777862fbd07d27d1284293c4e8a0d0a188b7a98efe8d5876fe3123456] digest must be of the form "sha256:<digest>".
 
@@ -1078,10 +1154,10 @@ deleted.
 Next Steps
 ===========
 
+1. Implement a feature-toggle that doesn't require pod recreation.
+
 1. How would Terraform and/or Helm improve upon a text template solution and
 `kubectl apply`?
-    
-1. Implement a feature-toggle that doesn't require pod recreation.
 
 1. Add Kafka to the application.
 
