@@ -5,3 +5,5 @@
 **/target
 **/.classpath
 **/.settings
+app.gcp.yaml
+app.minikube.yaml
