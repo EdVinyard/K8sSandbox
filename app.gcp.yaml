@@ -12,7 +12,6 @@ data:
     # how these values configure the Docker images.
     CASSANDRA_HOSTNAME: cassandra
     CASSANDRA_PORT: "9042"
-    COLOR: red
 ---
 apiVersion: v1
 kind: Service
@@ -156,8 +155,8 @@ spec:
                 - envFrom:
                       - configMapRef:
                             name: common
-                  image: $STL_IMAGE
-                  imagePullPolicy: $STL_IMAGE_PULL_POLICY
+                  image: gcr.io/maximal-copilot-249415/service-that-logs:debug
+                  imagePullPolicy: IfNotPresent
                   name: service-that-logs
                   ports:
                       - containerPort: 8080
@@ -169,13 +168,6 @@ spec:
                   resources: {}
                   terminationMessagePath: /dev/termination-log
                   terminationMessagePolicy: File
-                  volumeMounts:
-                      - name: common-config-volume
-                        mountPath: /etc/config
-            volumes:
-                - name: common-config-volume
-                  configMap:
-                    name: common
             dnsPolicy: ClusterFirst
             restartPolicy: Always
             schedulerName: default-scheduler
@@ -204,3 +196,4 @@ spec:
     type: LoadBalancer
 status:
     loadBalancer: {}
+

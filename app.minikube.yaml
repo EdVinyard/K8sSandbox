@@ -156,8 +156,8 @@ spec:
                 - envFrom:
                       - configMapRef:
                             name: common
-                  image: $STL_IMAGE
-                  imagePullPolicy: $STL_IMAGE_PULL_POLICY
+                  image: service-that-logs:debug
+                  imagePullPolicy: Never
                   name: service-that-logs
                   ports:
                       - containerPort: 8080
@@ -204,3 +204,4 @@ spec:
     type: LoadBalancer
 status:
     loadBalancer: {}
+

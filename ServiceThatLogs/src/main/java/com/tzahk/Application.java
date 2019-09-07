@@ -11,18 +11,20 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
-
-import com.datastax.oss.driver.api.core.CqlSession;
-import com.datastax.oss.driver.api.core.cql.ResultSet;
-import com.datastax.oss.driver.api.core.cql.Row;
+import org.springframework.scheduling.annotation.Scheduled;
 
 @SpringBootApplication
 public class Application {
-
-    final Logger log = LoggerFactory.getLogger(Application.class);
+    private final Logger log = LoggerFactory.getLogger(Application.class);
+    private static final int OneSecondInMs = 1000;
 
     public static void main(String[] args) {
         SpringApplication.run(Application.class, args);
+    }
+
+    @Scheduled(fixedDelay=OneSecondInMs, initialDelay=OneSecondInMs)
+    public void watchConfigFilesForChanges() {
+        ConfigDirectory.watchConfigFilesForChanges();
     }
 
     @Bean
