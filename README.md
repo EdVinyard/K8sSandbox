@@ -1151,14 +1151,117 @@ the format of my image name/tag.
 deleted.
 
 
+Saturday, Sept 7, 2019
+=======================
+
+Rather than pursue the feature toggle further, I'm going to try to get some
+experience with Kafka, then Flink.  Fire up Minikube.
+
+    $ sudo minikube start
+
+First, I'll try to add Kafka to my K8s Application using the expedient [GitHub
+repo yolean/kubernetes-kafka](https://github.com/Yolean/kubernetes-kafka),
+which relies on the new-ish (and somewhat confusingly documented) Kubernetes
+Kustomize feature. (This looks like a promising replacement for my homemade
+template system which relies on YAML "patch" files instead of a separate
+templating syntax.)
+
+    $ kubectl create namespace kafka
+    namespace/kafka created
+    
+    $ kubectl apply -k github.com/Yolean/kubernetes-kafka/variants/dev-small/?ref=v6.0.3
+    role.rbac.authorization.k8s.io/pod-labler created
+    clusterrole.rbac.authorization.k8s.io/node-reader created
+    rolebinding.rbac.authorization.k8s.io/kafka-pod-labler created
+    clusterrolebinding.rbac.authorization.k8s.io/kafka-node-reader created
+    configmap/broker-config created
+    configmap/zookeeper-config created
+    service/bootstrap created
+    service/broker created
+    service/pzoo created
+    service/zookeeper created
+    service/zoo created
+    statefulset.apps/kafka created
+    statefulset.apps/pzoo created
+    statefulset.apps/zoo created
+
+And then try it out by with `kafkacat`:
+
+    $ sudo apt-get install kafkacat
+
+    $ k port-forward -n kafka $(podname kafka kafka)
+
+    $ kafkacat -b localhost:9094 -L
+    Handling connection for 9094
+    Metadata for all topics (from broker 0: localhost:9094/0):
+     1 brokers:
+      broker 0 at localhost:9094
+     0 topics:
+
+    $ for i in {0..10}; do echo $i; done | kafkacat -P -b localhost:9094 -t numbers
+    Handling connection for 9094
+    
+    $ kafkacat -C -b localhost:9094 -t numbers -o beginning
+    Handling connection for 9094
+    0
+    1
+    2
+    3
+    4
+    5
+    6
+    7
+    8
+    9
+    10
+    % Reached end of topic numbers [0] at offset 11
+    ^C
+
+Add Kafka consumer/producer support to my Java application, following [these
+instructions](https://www.confluent.io/blog/apache-kafka-spring-boot-application)
+and https://start.spring.io to construct a `pom.xml` I can compare with my
+existing Maven configuration. (While I was at it, I bumped by Java language
+version to 11 from 8).  The important additions were as follows.
+
+```xml
+    <dependency>
+        <groupId>org.springframework.kafka</groupId>
+        <artifactId>spring-kafka</artifactId>
+    </dependency>
+    <dependency>
+        <groupId>org.springframework.kafka</groupId>
+        <artifactId>spring-kafka-test</artifactId>
+        <scope>test</scope>
+    </dependency>
+```
+
+I added a basic producer (driven by a new API endpoint: `POST /message`) and
+consumer that simply logs the received message.
+
+    $ mvn package
+
+    $ docker build --tag=service-that-logs:0.1.2 .
+
+Set `"STL_IMAGE": "service-that-logs:0.1.2"` in `app.minikube.json`.
+
+    $ ./rendertemplates.sh
+
+    $ k apply -f app.minikube.yaml
+    Howdy, curl/7.58.0!
+
+TODO: I rewrote the Kafka Consumer, and it's able to connect now, but I think it's
+failing to read messages because I'm not setting its topic consumer offset back
+to "earliest".
+
+
 Next Steps
 ===========
 
-1. Implement a feature-toggle that doesn't require pod recreation.
-
-1. How would Terraform and/or Helm improve upon a text template solution and
-`kubectl apply`?
-
-1. Add Kafka to the application.
+1. Java Application build, package, deploy cycle is a painful mess.  Fix it.
 
 1. Add Flink to the application.
+
+1. Implement a feature-toggle that doesn't require pod recreation.
+
+1. Switch to Kustomize from my custom templates. How would Terraform and/or
+Helm better Kustomize?

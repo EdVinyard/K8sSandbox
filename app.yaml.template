@@ -10,8 +10,9 @@ data:
     # in cassandra-statefulset.yaml.
     # https://kubernetes.io/docs/tutorials/stateful-application/cassandra/ explains
     # how these values configure the Docker images.
-    CASSANDRA_HOSTNAME: cassandra
+    CASSANDRA_HOSTNAME: cassandra.default.svc.cluster.local
     CASSANDRA_PORT: "9042"
+    KAFKA_HOSTPORT: "bootstrap.kafka.svc.cluster.local:9092"
 ---
 apiVersion: v1
 kind: Service

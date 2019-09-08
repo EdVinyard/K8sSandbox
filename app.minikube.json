@@ -1,4 +1,4 @@
 {
-    "STL_IMAGE": "service-that-logs:debug",
+    "STL_IMAGE": "service-that-logs:0.2.1",
     "STL_IMAGE_PULL_POLICY": "Never"
 }
