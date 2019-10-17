@@ -1,0 +1,60 @@
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+    namespace: minecraft
+    name: pod-get-list-exec
+rules:
+    - apiGroups: [""]
+      resources: ["pods"]
+      verbs: ["get", "list"]
+    - apiGroups: [""]
+      resources: ["pods/exec"]
+      verbs: ["create"]
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+    name: minecraft-backup-account
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+    name: pod-get-list-exec-binding
+    namespace: minecraft
+roleRef:
+    apiGroup: rbac.authorization.k8s.io
+    kind: Role
+    name: pod-get-list-exec
+subjects:
+    - kind: ServiceAccount
+      name: minecraft-backup-account
+      namespace: minecraft
+---
+kind: CronJob
+apiVersion: batch/v1beta1
+metadata:
+    name: minecraft-backup
+    namespace: minecraft
+    labels:
+        app: minecraft-backup
+spec:
+    schedule: "45 8 * * *" # REMEMBER: UTC Time!
+    jobTemplate:
+        spec:
+            template:
+                spec:
+                    serviceAccountName: minecraft-backup-account
+                    containers:
+                        - name: minecraft-backup
+                          image: gcr.io/maximal-copilot-249415/minecraft-backup
+                          env:
+                              - name: GOOGLE_APPLICATION_CREDENTIALS
+                                value: /var/secrets/google/key.json
+                          volumeMounts:
+                              - name: google-cloud-key
+                                mountPath: /var/secrets/google
+                    restartPolicy: OnFailure
+                    volumes:
+                        - name: google-cloud-key
+                          secret:
+                              secretName: minecraft-backup-bucket-writer-gcp-svc-acct

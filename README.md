@@ -1254,6 +1254,292 @@ failing to read messages because I'm not setting its topic consumer offset back
 to "earliest".
 
 
+Thursday, Oct 3
+================
+
+
+    $ helm init --service-account tiller --history-max 200
+
+    $ git clone https://github.com/helm/charts.git --depth 1
+
+    $ cd charts/stable/minecraft
+
+    $ $ helm install --name mc5 \
+        --set minecraftServer.eula=true \
+        -f values.yaml \
+        --namespace minecraft \
+        .
+
+
+Saturday, Oct 12
+=================
+
+Create a Kubernetes Service Account.
+
+    apiVersion: v1
+    kind: ServiceAccount
+    metadata:
+      name: minecraft-backup-account
+
+Create a deployment using the `google/cloud-sdk` Docker image (which includes both
+`kubectl` and `gsutil`):
+
+```
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: minecraft-backup
+  labels:
+    app: minecraft-backup
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app: minecraft-backup
+    spec:
+      serviceAccountName: minecraft-backup-account
+      containers:
+      - name: minecraft-backup
+        image: google/cloud-sdk
+        resources: {}
+        args:
+        - /bin/sh
+        - -c
+        - date; sleep 600    
+```
+
+From within the spawned Pod, this command is equivalent to "whoami":
+
+    $ gcloud config list account --format "value(core.account)"
+
+Notice that a cluster's default service account (unless you've changed it) has
+_Read Only_ permission to Google Storage.
+
+After creating a Service Account using the YAML above and `kubectl -apply`, I
+don't see the created account among those listed by [Google Cloud Platform >
+IAM & admin > Service
+Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts?project=maximal-copilot-249415).
+What's the difference between them?
+
+    ```
+    # gcloud config list account --format "value(core.account)"
+    783734974670-compute@developer.gserviceaccount.com
+
+    # kubectl get serviceaccount
+    Error from server (Forbidden): serviceaccounts is forbidden: User "system:serviceaccount:minecraft:minecraft-backup-account" cannot list resource "serviceaccounts" in API group "" in the namespace "minecraft"
+    ```
+
+[Using Google Cloud Service Accounts on
+GKE](https://blog.realkinetic.com/using-google-cloud-service-accounts-on-gke-e0ca4b81b9a2)
+looks like a very promising article.
+
+
+Thursday, Oct 17
+=================
+
+Credentials for `gsutil`
+-------------------------
+
+I found [the official docs for using a GCP Service Account
+key](https://cloud.google.com/kubernetes-engine/docs/tutorials/authenticating-to-cloud-platform).
+I think I had seen this before, but didn't really understand what was going on.
+
+After creating the GCP Service Account and downloading the JSON key file, I ran
+
+    kubectl create secret generic \
+        minecraft-backup-bucket-writer-gcp-svc-acct \
+        --from-file=key.json=maximal-copilot-249415-f9dd798719b2.json
+
+Then in my Deployment/CronJob spec, I add
+
+```yaml
+apiVersion: extensions/v1beta1
+spec:
+  template:
+    spec:
+      containers:
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: minecraft-backup-bucket-writer-gcp-svc-acct          
+```
+
+However, when I create that Deployment, I find that Google Cloud identity is 
+still the default one, and I still can't write to that Google Storage Bucket.
+
+    $ k exec -it minecraft-backup-79dbd66bdb-9lt4c -- bash
+    
+    # gcloud config list account --format "value(core.account)"
+    783734974670-compute@developer.gserviceaccount.com
+    
+    # gsutil cp test.txt gs://tzahk-minecraft-backup/test.txt
+    Copying file://test.txt [Content-Type=text/plain]...
+    AccessDeniedException: 403 Insufficient Permission 
+
+**`gsutil` does not rely on the `GOOGLE_APPLICATION_CREDENTIALS` environment
+variable. Instead, you must [specify the credentials to use
+explicitly](https://serverfault.com/a/901950/7209).
+
+
+    $ k exec -it $(k get pod -l app=minecraft-backup -o name | sed 's_pod/__') -- bash
+
+    # gcloud auth activate-service-account --key-file=/var/secrets/google/key.json 
+    Activated service account credentials for: [minecraft-backup@maximal-copilot-249415.iam.gserviceaccount.com]
+
+    # touch test2.txt
+
+    # gsutil cp test2.txt gs://tzahk-minecraft-backup/
+    Copying file://test2.txt [Content-Type=text/plain]...
+    / [1 files][    0.0 B/    0.0 B]                                                
+    Operation completed over 1 objects.      
+
+This (finally) works. So my Deployment/CronJob spec could be simplified, but
+I'm just going to leave it as-is with a comment that the environment variable
+is not used by `gsutil`.
+
+
+Credentials for `kubectl`
+--------------------------
+
+With help from https://stackoverflow.com/a/48118200/150 and a little fiddling,
+I've tested this ServiceAccount, Role, and RoleBinding setup:
+
+```yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  namespace: minecraft
+  name: pod-get-list-exec
+rules:
+- apiGroups: [""]
+  resources: ["pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+---
+kind: ServiceAccount
+apiVersion: v1
+metadata:
+  name: minecraft-backup-account
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: pod-get-list-exec-binding
+  namespace: minecraft
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: pod-get-list-exec
+subjects:
+- kind: ServiceAccount
+  name: minecraft-backup-account
+  namespace: minecraft
+```
+
+I created a test Deployment using the preceding config, and was able to walk
+through the steps to backup the _world_ directory in the Minecraft Pod and copy
+it to a Google Storage bucket.
+
+```yaml
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: minecraft-backup
+  labels:
+    app: minecraft-backup
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  template:
+    metadata:
+      labels:
+        app: minecraft-backup
+    spec:
+      serviceAccountName: minecraft-backup-account
+      containers:
+      - name: minecraft-backup
+        image: google/cloud-sdk
+        resources: {}
+        env:
+        - name: GOOGLE_APPLICATION_CREDENTIALS
+          value: /var/secrets/google/key.json
+        volumeMounts:
+        - name: google-cloud-key
+          mountPath: /var/secrets/google
+        args:
+        - /bin/sh
+        - -c
+        - date; sleep 600
+      volumes:
+      - name: google-cloud-key
+        secret:
+          secretName: minecraft-backup-bucket-writer-gcp-svc-acct
+```
+
+    $ kubectl exec -it $(k get pod -l app=minecraft-backup -o name | sed 's_pod/__') -- bash
+
+    # kubectl get pod -n minecraft
+    NAME                                READY   STATUS    RESTARTS   AGE
+    mc6-minecraft-6c69dcc8b5-ngjkw      1/1     Running   0          13d
+    minecraft-backup-58599cbbb6-znz4x   1/1     Running   0          4m37s
+    
+    # gcloud auth activate-service-account --key-file=/var/secrets/google/key.json
+    Activated service account credentials for: [minecraft-backup@maximal-copilot-249415.iam.gserviceaccount.com]
+    
+    # datetime=$(date '+%Y-%m-%dT%H%M') # Example: 2019-10-07T1534
+    
+    # pod=$(kubectl get pod -n minecraft -o name | grep '\-minecraft\-' | sed 's:pod/::')
+    
+    # backup_filename=${pod}.${datetime}.tgz 
+    
+    # kubectl exec $pod -- tar czf - world > ~/$backup_filename
+
+    # gsutil cp ~/$backup_filename gs://tzahk-minecraft-backup/
+    Copying file:///root/mc6-minecraft-6c69dcc8b5-ngjkw.2019-10-17T1727.tgz [Content-Type=application/x-tar]...
+    - [1 files][  9.3 MiB/  9.3 MiB]                                                
+    Operation completed over 1 objects/9.3 MiB.                                      
+    
+    # exit
+
+The last ingredient is a Docker image, stored in my GCP Docker Image
+Repository, based on the `google/cloud-sdk` image, including my backup script.
+I authored a simple Dockerfile:
+
+```docker
+FROM google/cloud-sdk
+COPY backup_minecraft.sh /
+CMD [ "/bin/bash", "/backup_minecraft.sh" ]
+```
+
+Then built it, pushed it to GCP Container Registry, and switched the CronJob
+spec to refer to it.
+
+    $ docker build -t minecraft-backup:v0.1 .
+    ...
+    Successfully tagged minecraft-backup:v0.1
+
+    $ docker tag minecraft-backup:v0.1 gcr.io/maximal-copilot-249415/minecraft-backup
+
+    $ docker push gcr.io/maximal-copilot-249415/minecraft-backup
+    The push refers to repository [gcr.io/maximal-copilot-249415/minecraft-backup]
+    ...
+    latest: digest: sha256:124acdbfba2008255f860aba18219d731b9cc42f322e00721eb44c79bc541ab3 size: 1160
+
+It works!
+
+
 Next Steps
 ===========
 
