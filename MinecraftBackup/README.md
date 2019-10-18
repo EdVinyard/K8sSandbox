@@ -23,7 +23,7 @@ The goal is to create a backup of a running (vanilla) Minecraft server world and
 chart](https://github.com/helm/charts/tree/master/stable/minecraft)...
 - in namespace `minecraft`.
 - To perform a backup, a copy of the whole directory `world` must be made.
-- The backup will be stored in a Google Storage (GS) Bucket.
+- The backup will be stored in a Google Storage (GS) Bucket
 
 
 
@@ -32,10 +32,10 @@ Two Different Kinds of Service Accounts
 
 There are two different types of Service Account involved in this operation:
 
-- a **[Kubernetes Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)**, needed to give your Kubernetes CronJob Pod the
-ability to `exec` into your Minecraft Pod to _create_ the backup, and
+1. a **[Kubernetes Service Account](https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/)**, needed to give your Kubernetes CronJob Pod the
+ability to `kubectl exec` into your Minecraft Pod to _create_ the backup, and
 
-- a **[Google Compute Platform (GCP) Service Account](https://cloud.google.com/iam/docs/service-accounts)**, needed to copy the backup file to a Google Storage Bucket.
+1. a **[Google Compute Platform (GCP) Service Account](https://cloud.google.com/iam/docs/service-accounts)**, needed to copy the backup file to a Google Storage Bucket with `gsutil cp`.
 
 
 Google Storage Bucket
@@ -91,7 +91,7 @@ was named `maximal-copilot-249415-f9dd798719b2.json`).
 Backup Script
 --------------
 
-**The backup script run in a Kubernetes Pod to create the backup file and copy
+**The backup script runs in a Kubernetes Pod to create the backup file and copy
 it to a GS Bucket.**
 
 [backup_minecraft.sh](backup_minecraft.sh) is very short and heavily commented,
